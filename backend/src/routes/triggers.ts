@@ -40,4 +40,46 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+//GET:
+
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT 
+        t.id, t.nome, t.tipo, t.ativo, t.criado_em,
+        tv.id AS valor_id, tv.valor
+      FROM triggers t
+      LEFT JOIN trigger_valores tv ON tv.trigger_id = t.id
+      ORDER BY t.criado_em DESC, tv.id ASC
+    `);
+
+    const triggersMap = new Map();
+
+    for (const linha of resultado.rows) {
+      if (!triggersMap.has(linha.id)) {
+        triggersMap.set(linha.id, {
+          id: linha.id,
+          nome: linha.nome,
+          tipo: linha.tipo,
+          ativo: linha.ativo,
+          criado_em: linha.criado_em,
+          valores: [],
+        });
+      }
+
+      if (linha.valor_id) {
+        triggersMap.get(linha.id).valores.push({
+          id: linha.valor_id,
+          valor: linha.valor,
+        });
+      }
+    }
+
+    res.json(Array.from(triggersMap.values()));
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ erro: 'Erro ao buscar triggers' });
+  }
+});
+
 export default router;
